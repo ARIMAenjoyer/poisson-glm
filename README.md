@@ -14,8 +14,7 @@ while addressing multicollinearity and heteroskedasticity.
 Crime rates represent count-type data per population unit, which is exactly what poisson distribution describes. 
 A Poisson GLM with log link ensures:
 
-- Non-negative predictions  
-- Multiplicative interpretation of effects  
+- Non-negative predictions    
 - Variance proportional to the mean
 
 ## What was implemented
