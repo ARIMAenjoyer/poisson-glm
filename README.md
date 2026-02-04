@@ -46,7 +46,7 @@ interpretable coefficients.
 Key findings:
 
 - All independent variables are significant on level of 0.05
-- Without regularization result is ininterpretable due to multicolinearity
+- Without regularization, result is ininterpretable due to multicolinearity
 - Elastic Net regularization stabilized estimates, acurate l1 and l2 hyperparameters are supposed to be choosen by cross-validation
 
 
