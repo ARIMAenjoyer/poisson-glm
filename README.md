@@ -11,7 +11,7 @@ while addressing multicollinearity and heteroskedasticity.
 
 ## Why Poisson GLM?
 
-Crime rates represent count-type data per population unit. 
+Crime rates represent count-type data per population unit, which is exactly what poisson distribution describes as random variable. 
 A Poisson GLM with log link ensures:
 
 - Non-negative predictions  
