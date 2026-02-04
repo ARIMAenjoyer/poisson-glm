@@ -132,9 +132,9 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
     return(L)
   }
 
-# ============================================================ 
-# Gessian and Fisher information, p-value for parameters
-# ============================================================ 
+# ============================================================================================================================
+# Gessian and Fisher information, p-value for parameters. Hessian is always found with log lokelihood without regularization.
+# ============================================================================================================================
   params <- c(beta0, beta) 
   params_plus <- numeric(length(params))
   params_minus <- numeric(length(params))
