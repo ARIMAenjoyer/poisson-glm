@@ -49,8 +49,12 @@ Key findings:
 - Without regularization, result is ininterpretable due to multicolinearity
 - Elastic Net regularization stabilized estimates, acurate l1 and l2 hyperparameters are supposed to be choosen by cross-validation
 
+## Simulation of Crime Events
 
+Using the estimated Poisson intensity, multiple crime paths were simulated 
+to visually illustrate variability and construct empirical confidence intervals. 
 
+![Poisson simulation](simulation.gif)
 
 
 
