@@ -1,0 +1,202 @@
+GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, inert = 0.85, learning_rate = 1e-4, convergence = 1e-4) {
+  
+  log_likelihood_history <- numeric(iter) 
+  beta0 <- 0
+  beta0_new <- 0
+  beta <- numeric(ncol(X))
+  beta_new <- numeric(ncol(X))
+  beta_plus <- numeric(length(beta))
+  beta_minus <- numeric(length(beta))
+  beta_lookahead <- numeric(length(beta))
+  beta_v <- numeric(length(beta))
+  beta_new_v <- numeric(length(beta))
+  beta0_v <- 0
+  beta0_new_v <- 0
+  beta0_lookahead <- 0
+  eps <- 1e-6
+  estimate <- numeric(nrow(X))
+  
+  X_scored <- matrix(nrow = nrow(X), ncol = ncol(X)) 
+  for (i in 1:ncol(X_scored)) {
+    X_scored[, i] <- (X[, i] - mean(X[, i])) / sd(X[, i])
+  }
+    
+  log_likelihood <- function(y, X_scored, lambda_ridge, lambda_lasso, beta0, beta) { 
+    
+    L <- 0
+    for(i in 1:nrow(X_scored)) {
+      
+      mu <- exp(beta0 + sum(X_scored[i, ] * beta))
+      L <- L + (-lfactorial(y[i]) + y[i] * log(mu) - mu)
+    }
+    L <- L - lambda_ridge * sum(beta^2) - lambda_lasso * sum(abs(beta))
+    return(L)
+  }
+  
+  gradient <- function(y, X_scored, lambda_ridge, lambda_lasso, beta0, beta) {
+    
+    beta0_gradient <- 0
+    beta_gradient <- numeric(length(beta))
+    
+    beta0_gradient <- (log_likelihood(y, X_scored, lambda_ridge, lambda_lasso, beta0 + eps, beta) - log_likelihood(y, X_scored, lambda_ridge, lambda_lasso, beta0 - eps, beta)) / (2 * eps)
+    
+    for(i in 1:length(beta)) {
+      beta_plus <- beta
+      beta_minus <- beta
+      beta_plus[i] <- beta[i] + eps
+      beta_minus[i] <- beta[i] - eps
+        
+      beta_gradient[i] <- (log_likelihood(y, X_scored, lambda_ridge, lambda_lasso, beta0, beta_plus) - log_likelihood(y, X_scored, lambda_ridge, lambda_lasso, beta0, beta_minus)) / (2 * eps)
+    }
+    
+    return(list(beta0_gradient = beta0_gradient, beta_gradient = beta_gradient))
+  }
+  
+  for (i in 1:iter) { #это градиентный спуск, тут я подбираю параметры. это буквально MLE
+    
+    for (j in 1:length(beta)) {
+      beta_lookahead[j] <- beta[j] + inert * beta_v[j]
+    }
+    beta0_lookahead <- beta0 + inert * beta0_v
+      
+    gradients <- gradient(y, X_scored, lambda_ridge, lambda_lasso, beta0_lookahead, beta_lookahead)
+    
+    for (j in 1:length(beta)) {
+      beta_new_v[j] <- inert * beta_v[j] + learning_rate * gradients$beta_gradient[j]
+      beta_new[j] <- beta[j] + beta_new_v[j]
+    }
+    beta0_new_v <- inert * beta0_v + learning_rate * gradients$beta0_gradient
+    beta0_new <- beta0 + beta0_new_v
+    log_likelihood_history[i] <- log_likelihood(y, X_scored, lambda_ridge, lambda_lasso, beta0, beta)
+    
+    if (all(abs(beta_new - beta) < convergence) &&
+        abs(beta0_new - beta0) < convergence) {
+      cat("сходимость достигнута на итерации", i, "\n")
+      break
+    }
+    
+    beta0 <- beta0_new
+    beta <- beta_new
+    beta0_v <- beta0_new_v
+    beta_v <- beta_new_v
+    log_L <- log_likelihood(y, X_scored, lambda_ridge, lambda_lasso, beta0, beta)
+    
+    #cat("параметры: ", beta0, beta, "\n")
+  }
+  
+  meanX <- apply(X, 2, mean)
+  sdX   <- apply(X, 2, sd)
+  
+  restored_beta <- numeric(length(beta) + 1)
+  restored_beta[-1] <- beta / sdX
+  restored_beta[1]  <- beta0 - sum(beta * meanX / sdX)
+  
+  estimate <- exp(restored_beta[1] + as.vector(X %*% restored_beta[-1]))
+  
+  lh <- function(y, X_scored, lambda_ridge, lambda_lasso, params) {
+    
+    L <- 0
+    for(i in 1:nrow(X_scored)) {
+      
+      mu <- exp(params[1] + sum(X_scored[i, ] * params[2:length(params)]))
+      L <- L + (-lfactorial(y[i]) + y[i] * log(mu) - mu)
+    }
+    L <- L - lambda_ridge * sum(params[-1]^2) - lambda_lasso * sum(abs(params[-1]))
+    return(L)
+  }
+  
+  params <- c(beta0, beta) 
+  params_plus <- numeric(length(params))
+  params_minus <- numeric(length(params))
+  params_plus_minus <- numeric(length(params))
+  params_minus_plus <- numeric(length(params))
+  Fisher_I <- matrix(ncol = length(params), nrow = length(params))
+  for(i in 1:length(params)) {
+    
+    for(j in 1:length(params)) { 
+      if (i == j) {
+        params_plus <- params
+        params_plus[i] <- params_plus[i] + eps
+        params_minus <- params
+        params_minus[i] <- params_minus[i] - eps
+        Fisher_I[i, j] <- -(lh(y, X_scored, lambda_ridge = 0, lambda_lasso = 0, params_plus) - 2 * lh(y, X_scored, lambda_ridge = 0, lambda_lasso = 0, params) + lh(y, X_scored, lambda_ridge = 0, lambda_lasso = 0, params_minus)) / (eps^2)
+      } else {
+        params_plus <- params
+        params_plus[i] <- params_plus[i] + eps
+        params_plus[j] <- params_plus[j] + eps
+        params_minus <- params
+        params_minus[i] <- params_minus[i] - eps
+        params_minus[j] <- params_minus[j] - eps
+        params_plus_minus <- params
+        params_plus_minus[i] <- params_plus_minus[i] + eps
+        params_plus_minus[j] <- params_plus_minus[j] - eps
+        params_minus_plus <- params
+        params_minus_plus[i] <- params_minus_plus[i] - eps
+        params_minus_plus[j] <- params_minus_plus[j] + eps
+        Fisher_I[i, j] <- -(lh(y, X_scored, lambda_ridge = 0, lambda_lasso = 0, params_plus) - lh(y, X_scored, lambda_ridge = 0, lambda_lasso = 0, params_plus_minus) - lh(y, X_scored, lambda_ridge = 0, lambda_lasso = 0, params_minus_plus) + lh(y, X_scored, lambda_ridge = 0, lambda_lasso = 0, params_minus)) / (4 * eps^2)
+      }
+    }
+  }
+  Fisher_I_inv <- solve(Fisher_I)
+  se_beta <- numeric(length(params))
+  for(i in 1:nrow(Fisher_I)) {
+    se_beta[i] <- sqrt(Fisher_I_inv[i, i])
+  }
+  p_value_beta <- 2 * (1 - pnorm(abs(params / se_beta), 0, 1))
+  
+  R_mcfadden <- sqrt(1 - (log_likelihood(y, X_scored, lambda_ridge = 0, lambda_lasso = 0, beta0, beta) / sum(-lfactorial(y) + y * log(mean(y)) - mean(y))))
+  
+  BIC <- -2 * log_likelihood(y, X_scored, lambda_ridge = 0, lambda_lasso= 0, beta0, beta) + (length(beta) + 1) * log(nrow(X))
+  
+  mu_hat <- numeric(length(y))
+  for(i in 1:nrow(X_scored)) {
+    mu_hat[i] <- exp(beta0 + sum(X_scored[i, ] * beta))
+  }
+  
+  return(list(log_likelihood_history = log_likelihood_history, estimate = estimate, 
+              intercept = beta0, beta = beta, log_L = log_L, 
+              p_value_beta = p_value_beta, R_mcfadden = R_mcfadden, BIC = BIC, restored_beta = restored_beta, mu_hat = mu_hat))
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
