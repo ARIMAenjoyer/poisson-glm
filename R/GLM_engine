@@ -1,5 +1,12 @@
+# ============================================================
+# Custom Poisson GLM with Elastic Net Regularization
+# ============================================================
+
 GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, inert = 0.85, learning_rate = 1e-4, convergence = 1e-4) {
-  
+
+# ============================================================ 
+# Inicializing variables
+# ============================================================ 
   log_likelihood_history <- numeric(iter) 
   beta0 <- 0
   beta0_new <- 0
@@ -15,12 +22,18 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
   beta0_lookahead <- 0
   eps <- 1e-6
   estimate <- numeric(nrow(X))
-  
+
+# ============================================================ 
+# Standartization of independent variables via z-score
+# ============================================================ 
   X_scored <- matrix(nrow = nrow(X), ncol = ncol(X)) 
   for (i in 1:ncol(X_scored)) {
     X_scored[, i] <- (X[, i] - mean(X[, i])) / sd(X[, i])
   }
-    
+
+# ============================================================ 
+# Log likelihood function based on poisson density, with ln link
+# ============================================================ 
   log_likelihood <- function(y, X_scored, lambda_ridge, lambda_lasso, beta0, beta) { 
     
     L <- 0
@@ -32,7 +45,10 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
     L <- L - lambda_ridge * sum(beta^2) - lambda_lasso * sum(abs(beta))
     return(L)
   }
-  
+
+# ============================================================ 
+# Function for gradient
+# ============================================================ 
   gradient <- function(y, X_scored, lambda_ridge, lambda_lasso, beta0, beta) {
     
     beta0_gradient <- 0
@@ -51,8 +67,12 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
     
     return(list(beta0_gradient = beta0_gradient, beta_gradient = beta_gradient))
   }
-  
-  for (i in 1:iter) { #это градиентный спуск, тут я подбираю параметры. это буквально MLE
+
+
+# ============================================================ 
+# Gradien decent vith Nesterov momentum
+# ============================================================ 
+  for (i in 1:iter) { 
     
     for (j in 1:length(beta)) {
       beta_lookahead[j] <- beta[j] + inert * beta_v[j]
@@ -71,7 +91,7 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
     
     if (all(abs(beta_new - beta) < convergence) &&
         abs(beta0_new - beta0) < convergence) {
-      cat("сходимость достигнута на итерации", i, "\n")
+      cat("convergence achieved on iteration", i, "\n")
       break
     }
     
@@ -81,9 +101,12 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
     beta_v <- beta_new_v
     log_L <- log_likelihood(y, X_scored, lambda_ridge, lambda_lasso, beta0, beta)
     
-    #cat("параметры: ", beta0, beta, "\n")
+    #cat("params: ", beta0, beta, "\n")
   }
-  
+
+# ============================================================ 
+# Restoring coefficients to the initial scale
+# ============================================================ 
   meanX <- apply(X, 2, mean)
   sdX   <- apply(X, 2, sd)
   
@@ -92,7 +115,10 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
   restored_beta[1]  <- beta0 - sum(beta * meanX / sdX)
   
   estimate <- exp(restored_beta[1] + as.vector(X %*% restored_beta[-1]))
-  
+
+# ===========================================================================
+# Rewritten likelihood to one-vector function to all parameters in one vector
+# ===========================================================================
   lh <- function(y, X_scored, lambda_ridge, lambda_lasso, params) {
     
     L <- 0
@@ -104,7 +130,10 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
     L <- L - lambda_ridge * sum(params[-1]^2) - lambda_lasso * sum(abs(params[-1]))
     return(L)
   }
-  
+
+# ============================================================ 
+# Gessian and Fisher's information, p-value for parameters
+# ============================================================ 
   params <- c(beta0, beta) 
   params_plus <- numeric(length(params))
   params_minus <- numeric(length(params))
