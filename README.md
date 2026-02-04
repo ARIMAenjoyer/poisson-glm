@@ -46,9 +46,9 @@ interpretable coefficients.
 
 Key findings:
 
-- Higher wages are associated with lower crime rates  
-- All independent variables are significant on significance 0.01
-- Elastic Net regularization stabilized estimates under multicollinearity
+- All independent variables are significant on level of 0.05
+- Without regularization result is ininterpretable due to multicolinearity
+- Elastic Net regularization stabilized estimates, acurate l1 and l2 hyperparameters are supposed to be choosen by cross-validation
 
 
 
