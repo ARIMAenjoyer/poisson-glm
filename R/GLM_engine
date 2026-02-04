@@ -71,7 +71,7 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
 
 
 # ============================================================ 
-# Gradien decent vith Nesterov momentum
+# Gradien descent vith Nesterov momentum
 # ============================================================ 
   for (i in 1:iter) { 
     
@@ -133,7 +133,7 @@ GLM_poisson <- function(y, X, lambda_ridge = 0, lambda_lasso = 0,  iter = 1e5, i
   }
 
 # ============================================================ 
-# Gessian and Fisher's information, p-value for parameters
+# Gessian and Fisher information, p-value for parameters
 # ============================================================ 
   params <- c(beta0, beta) 
   params_plus <- numeric(length(params))
