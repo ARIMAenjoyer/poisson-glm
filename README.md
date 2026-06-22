@@ -22,7 +22,7 @@ A Poisson GLM with log link ensures:
 Instead of using built-in GLM functions, the model was implemented from scratch:
 
 - Log-likelihood function for Poisson GLM  
-- Elastic Net regularization  
+- Regularization  
 - Gradient descent with Nesterov momentum  
 - Numerical gradient approximation  
 - Fisher Information Matrix for inference  
